@@ -2,7 +2,7 @@
 title: "prova"
 author: "ndricca"
 date: "27 luglio 2017"
-output: html_document
+output: github_document 
 ---
 
 ```{r setup, include=FALSE}
