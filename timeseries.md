@@ -11,7 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Time series analysis
 
-Univariate and multivariate models for anomaly detection
+Univariate and multivariate models for anomaly detection.
+First attempt of concrete use of GitHub repo.
 
 Setup the environment loading all the necessary packages
 ```{r packages, include=FALSE}
