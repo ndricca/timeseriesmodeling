@@ -1,29 +1,64 @@
+Sys.setlocale("LC_TIME","C")
 set.seed(123)
 library(ggplot2)
 library(TTR)
+library(ggjoy)
 library(gbm)
-library(dplyr)
+library(tidyverse)
 library(stringr)
 library(tseries)
 library(ggplot2)
 library(forecast)
 library(xts)
 library(reshape2)
+library(padr)
 
- 
-data <- read.csv("C://Users//andrea.ricca//Downloads//DA_GTEL_SRVGestorePreventivo_count_errors.csv",
-                 sep = ",",header = T)
-data$date = as.POSIXct(data$date, format = "%Y/%m/%d %H:%M:%S")
 
-time_index <- seq(from = as.POSIXct("2017-04-15"), 
-                  to = as.POSIXct(data$date[nrow(data)]), by = "hour")
+df <- read.csv("C://Users//andrea.ricca//Downloads//series1_count_errors.csv",
+               sep = ",",header = T)
+df$date = as.POSIXct(df$date, format = "%Y/%m/%d %H")
+df <- df %>% pad %>% fill_by_value(value = 0)
+levels(df$root) <- "series_one"
+df[is.na(df$root),"root"] <- "series_one"
+df$date_hour <- as.factor(df$date_hour)
+df$date_wday <- as.factor(weekdays(df$date))
 
-time_index <- as.xts(time_index)["2017-04-15T18:00/"]
-na.fill(time_index,fill = 0)
-df <- data.frame(date=time_index)
+summary(df)
 
-errordata <- as.matrix(data[,6])
+df %>% 
+  select(sum_error,date_wday) %>%
+  group_by(date_wday) %>%
+  do(ggplot2:::compute_density(.$sum_error, NULL)) %>%
+  rename(sum_error = x) -> df_density_wday
 
+ggplot(df_density_wday, aes(x = sum_error, y = date_wday, height = density)) + 
+  geom_joy(stat = "identity")
+
+ggplot(df_density_wday, aes(x = sum_error, y = date_wday, height = ..density..)) + 
+  geom_joy(stat = "binline",bins = 10)
+
+
+ggplot(df,aes(x = sum_error)) + 
+  geom_histogram(aes(y=..density..), binwidth=100,position="identity") + 
+  stat_function(geom = "line", fun = dpois, arg = list(lambda = mean(df$sum_error)), colour = "red", fill = NA, n = 9)
+
+mean(df$sum_error)
+round(max(df$sum_error),-3)
+summary(errordata)
+
+errordata <- xts(x = df[,5], order.by = df[,1])
+attr(errordata,"frequency ") <- 24
+str(coredata(errordata))
+ggplot(errordata,aes(x = errordata[,1])) + geom_density()
+
+plot(decompose(as.ts(errordata)))
+
+plot(ets(as.ts(errordata)))
+error.ts <- ts(errordata,start = start(errordata), frequency = 24*7)
+index(error.ts) <- as.POSIXct(as.numeric(as.character(index(error.ts))),origin="1970-01-01",tz="GMT")
+attributes(errordata)$frequency <- 24*7
+plot(decompose(as.ts(errordata)))
+plot(dec_err)
 count <- xts(errordata, order.by = as.POSIXct(data[,1]), frequency =24*7)
 errorcount <- merge(count,time_index)[,1]
 errorcount <- na.fill(errorcount,fill = 0)

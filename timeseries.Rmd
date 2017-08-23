@@ -1,18 +1,17 @@
 ---
-title: "prova"
+title: "Time series analysis: univariate"
 author: "ndricca"
 date: "27 luglio 2017"
 output: github_document 
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, echo=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Time series analysis
+## Univariate models for anomaly detection.
 
-Univariate and multivariate models for anomaly detection.
-First attempt of concrete use of GitHub repo.
+# Joyplot visualisation
 
 Setup the environment loading all the necessary packages
 ```{r packages, include=FALSE}
@@ -23,22 +22,28 @@ library(dplyr)
 library(forcats)
 library(reshape2)
 library(tidyr)
+library(padr)
 ```
 # Data import
 
 Load data and fill all NAs with 0. Then, see data structure and summary
 ```{r load_data,echo=FALSE}
-df <- read.csv("C://Users//andrea.ricca//Downloads//DA_GTEL_SRVGestorePreventivo_count_errors.csv",
+df <- read.csv("C://Users//andrea.ricca//Downloads//series1_count_errors.csv",
          sep = ",",header = T)
 df$date = as.POSIXct(df$date, format = "%Y/%m/%d %H")
-df[is.na(df)] <- 0
-levels(df$root) <- "TSVariable"
+df <- df %>% pad %>% fill_by_value(value = 0)
+levels(df$root) <- "series_one"
+df[is.na(df$root),"root"] <- "series_one"
+df$date_hour <- as.factor(df$date_hour)
+df$date_wday <- as.factor(weekdays(df$date))
+sum(is.na)
 str(df)
 summary(df)
 
 ```
 
-# Visualisation
+
+# Joyplot Visualisation
 
 Joyplot per weekday and hour:
 Reshape the dataframe in order to visualize data as expected from ggplot.
@@ -61,9 +66,9 @@ df2%>%
 
 ```
 
-Distribuzion per hour:
+Distribution per hour (same code with different y-axis variable)
 
-```{r ggjoy_hour}
+```{r ggjoy_hour, echo=FALSE}
 df3 <- df %>% 
   gather(count, sum_error, key = "Variable", value = "Data") %>%
   arrange(date_hour,date) 
@@ -76,4 +81,8 @@ df3 %>%
        title = "Count of Volumes and Errors: different distribution by hour",
        subtitle = "Volumes (Red) and Errors (Blue)")
 ```
+
+
+# Decomposed Error time series 
+
 
