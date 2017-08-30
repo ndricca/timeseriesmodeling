@@ -14,6 +14,7 @@ library(tidyverse)
 library(padr)
 library(grid)
 library(animation)
+library(reshape2)
 
 ########### data import and preparation ########### 
 
@@ -93,7 +94,7 @@ CtreeTrend <- function(df, set_of_date, period = 24){
 }
 
 
-#############
+############# outlier oneshot ############# 
 # ctree_list <- CtreeTrend(df, n_date[(1):(7*3)])
 # summary(ctree_list)
 # test_data <- df[df$day %in% n_date[22], ]
@@ -110,6 +111,38 @@ CtreeTrend <- function(df, set_of_date, period = 24){
 #                                 rep("Fcst lower bound", length(ctree_list$forecast)),
 #                                 rep("Fcst upper bound", length(ctree_list$forecast))))
 # 
+# ctree_list <- CtreeTrend(df, n_date[(1):(7*3)])
+# # summary(ctree_list)
+# test_data <- df[df$day %in% n_date[22], ]
+# tail(test_data)
+# outliers <- rep(NA,nrow(test_data))
+# outliers[test_data$sum_error > ctree_list$forecast + ctree_list$upper] <- test_data[test_data$sum_error  > ctree_list$forecast + ctree_list$upper,"sum_error"]
+# outliers[5] <- 200
+# 
+# data_for <- data.table(Load = c(ctree_list$real, test_data$sum_error, ctree_list$forecast, 
+#                                 ctree_list$lower, ctree_list$upper),
+#                        Date = c(df[df$day %in% n_date[(1):(7*3)], "date"],
+#                                 rep(test_data$date, 4)),
+#                        Type = c(rep("Train data", length(ctree_list$real)),
+#                                 rep("Test data", length(ctree_list$forecast)),
+#                                 rep("Fcst mean", length(ctree_list$forecast)),
+#                                 rep("Fcst lower bound", length(ctree_list$forecast)),
+#                                 rep("Fcst upper bound", length(ctree_list$forecast))))
+# outdata <- data.table(Load = outliers,
+#                       Date = test_data$date,
+#                       Type = rep("outliers",nrow(test_data)))
+# 
+# 
+# gg1 <- ggplot(data_for, aes(Date, Load, color = Type)) +
+#   geom_line(size = 0.8, alpha = 0.75)
+# if (!all(is.na(outliers))) gg1 <- gg1 + geom_point(data=outdata,aes(Date,Load),color = "red",shape = "x",size=2.5,na.rm = FALSE)
+# gg1 <- gg1 + facet_zoom(xy = Date %in% test_data$date, zoom.size = 1.2, horizontal = FALSE) +
+#   labs(x= NULL, title =  paste("Forecast from forecast.stl; ", "day number: ", i+21, sep = ""))
+# gg1
+# 
+# 
+# 
+# 
 # outdata <- data.table(Load = outliers,
 #                       Date = test_data$date,
 #                       Type = rep("outliers",nrow(test_data)))
@@ -122,7 +155,7 @@ CtreeTrend <- function(df, set_of_date, period = 24){
 
 
 
-# ########### animation ###########
+########### animation ###########
 define_region <- function(row, col){
     viewport(layout.pos.row = row, layout.pos.col = col)
   }
@@ -138,14 +171,17 @@ for(i in 0:(n_days-1)){
   ctree_list <- CtreeTrend(df, n_date[(i+1):(i+7*3)])
 
   test_data <- df[df$day %in% n_date[22+i], ]
-  #    ctree_err_mape <- mape(test_data$value,
-  #                           ctree_list$forecast)
+  n_test_data <- nrow(test_data)
+  if (length(ctree_list$forecast) > n_test_data) {
+    ctree_list$forecast <- ctree_list$forecast[1:n_test_data]
+    ctree_list$lower <- ctree_list$lower[1:n_test_data]
+    ctree_list$upper <- ctree_list$upper[1:n_test_data]
+  }
 
-  # 1. plot of forecasts
-  
+
   outliers <- rep(NA,nrow(test_data))
   outliers[test_data$sum_error > ctree_list$forecast + ctree_list$upper] <- test_data[test_data$sum_error  > ctree_list$forecast + ctree_list$upper,"sum_error"]
-  
+
   data_for <- data.table(Load = c(ctree_list$real, test_data$sum_error, ctree_list$forecast, ctree_list$lower, ctree_list$upper),
                          Date = c(df[df$day %in% n_date[(i+1):(i+7*3)], "date"],
                                   rep(test_data$date, 4)),
@@ -154,14 +190,14 @@ for(i in 0:(n_days-1)){
                                   rep("Fcst mean", length(ctree_list$forecast)),
                                   rep("Fcst lower bound", length(ctree_list$forecast)),
                                   rep("Fcst upper bound", length(ctree_list$forecast))))
-  
+
   outdata <- data.table(Load = outliers,
                         Date = test_data$date,
                         Type = rep("outliers",nrow(test_data)))
-  
+
                         gg1 <- ggplot(data_for, aes(Date, Load, color = Type)) +
-                           geom_line(size = 0.8, alpha = 0.75)
-                        if (!all(is.na(outdata$Load))) gg1 <- gg1 + geom_point(data=outdata,aes(Date,Load,color = Type),na.rm = FALSE)
+                          geom_line(size = 0.8, alpha = 0.75)
+                        if (!all(is.na(outdata$Load))) gg1 <- gg1 + geom_point(data=outdata,aes(Date,Load,color = Type),color = "red",shape = "x",size=2.5,na.rm = FALSE)
                         gg1 <- gg1 + facet_zoom(xy = Date %in% test_data$date, zoom.size = 1.2, horizontal = FALSE) +
                            labs(x= NULL, title =  paste("Forecast from forecast.stl; ", "day number: ", i+21, sep = ""))
                     #      labs(x= NULL, title =  paste("Forecast from CTREE; ", "day: ", i+21, "; MAPE: ",
@@ -190,4 +226,5 @@ for(i in 0:(n_days-1)){
                     dev.off()
 }
 close(pb,i)
-saveHTML(ani.replay(), img.name = "record_plot",outdir = getwd())
+htmlfilename <- paste0("html_animated_plot_",format(Sys.time(),"%Y%m%d%H%M%S"),".html")
+saveHTML(ani.replay(), img.name = "recorded_plot", htmlfile = htmlfilename, outdir = getwd())
