@@ -27,6 +27,9 @@ df$date_hour <- as.factor(df$date_hour)
 df$date_wday <- as.factor(weekdays(df$date))
 df$day <- format(df$date,"%Y/%m/%d")
 
+# remove first and last day from df because they are not complete days
+df <- df[!df$day %in% c(unique(df$day)[1],unique(df$day)[length(unique(df$day))]),]
+
 ########### set parameters ########### 
 
 n_date <- unique(df$day)
@@ -97,14 +100,15 @@ total = n_days-1
 
 pb <- txtProgressBar(min = 0, max = total, style = 3)
 ani.record(reset=TRUE)
-n_days <- floor(length(n_date)) - 21
+training_days <- 35
+n_days <- floor(length(n_date)) - training_days
 
 
 for(i in 0:(n_days-1)){
   
-  forecast_tbats_list <- forecast_tbats(df, n_date[(i+1):(i+7*3)])
+  forecast_tbats_list <- forecast_tbats(df, n_date[(i+1):(i+training_days)])
   
-  test_data <- df[df$day %in% n_date[22+i], ]
+  test_data <- df[df$day %in% n_date[training_days+1+i], ]
   n_test_data <- nrow(test_data)
   if (length(forecast_tbats_list$forecast) > n_test_data) {
     forecast_tbats_list$forecast <- forecast_tbats_list$forecast[1:n_test_data]
@@ -118,7 +122,7 @@ for(i in 0:(n_days-1)){
   
   data_for <- data.table(Load = c(forecast_tbats_list$real, test_data$sum_error, forecast_tbats_list$forecast, 
                                   forecast_tbats_list$lower, forecast_tbats_list$upper),
-                         Date = c(df[df$day %in% n_date[(i+1):(i+7*3)], "date"],
+                         Date = c(df[df$day %in% n_date[(i+1):(i+training_days)], "date"],
                                   rep(test_data$date, 4)),
                          Type = c(rep("Train data", length(forecast_tbats_list$real)),
                                   rep("Test data", length(forecast_tbats_list$forecast)),
@@ -134,7 +138,7 @@ for(i in 0:(n_days-1)){
     geom_line(size = 0.8, alpha = 0.75)
   if (!all(is.na(outdata$Load))) gg1 <- gg1 + geom_point(data=outdata,aes(Date,Load,color = Type),color = "red",shape = "x",size=2.5,na.rm = FALSE)
   gg1 <- gg1 + facet_zoom(xy = Date %in% test_data$date, zoom.size = 1.2, horizontal = FALSE) +
-    labs(x= NULL, title =  paste("Forecast from tbats; ", "day number: ", i+21, sep = ""))
+    labs(x= NULL, title =  paste("Forecast from tbats; ", "day number: ", i+training_days, sep = ""))
   
   grid.newpage()
   # Create layout : nrow = 2, ncol = 1

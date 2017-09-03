@@ -57,6 +57,40 @@ forecast_stl <- function(df, set_of_date, period = 24){
 
 
 ############# forecast stl oneshot ############# 
+i<-11
+forecast_stl_list <- forecast_stl(df, n_date[(i+1):(i+7*3)])
+
+test_data <- df[df$day %in% n_date[22+i], ]
+n_test_data <- nrow(test_data)
+if (length(forecast_stl_list$forecast) > n_test_data) {
+  forecast_stl_list$forecast <- forecast_stl_list$forecast[1:n_test_data]
+  forecast_stl_list$lower <- forecast_stl_list$lower[1:n_test_data]
+  forecast_stl_list$upper <- forecast_stl_list$upper[1:n_test_data]
+}
+
+outliers <- rep(NA,nrow(test_data))
+outliers[test_data$sum_error > forecast_stl_list$upper] <- test_data[test_data$sum_error  > forecast_stl_list$upper,"sum_error"]
+
+data_for <- data.table(Load = c(forecast_stl_list$real, test_data$sum_error,
+                                forecast_stl_list$forecast, forecast_stl_list$lower, forecast_stl_list$upper),
+                       Date = c(df[df$day %in% n_date[(i+1):(i+7*3)], "date"],
+                                rep(test_data$date, 4)),
+                       Type = c(rep("Train data", length(forecast_stl_list$real)),
+                                rep("Test data", length(forecast_stl_list$forecast)),
+                                rep("Fcst mean", length(forecast_stl_list$forecast)),
+                                rep("Fcst lower bound", length(forecast_stl_list$forecast)),
+                                rep("Fcst upper bound", length(forecast_stl_list$forecast))))
+
+outdata <- data.table(Load = outliers,
+                      Date = test_data$date,
+                      Type = rep("outliers",nrow(test_data)))
+
+gg1 <- ggplot(data_for, aes(Date, Load, color = Type)) +
+  geom_line(size = 0.8, alpha = 0.75)
+if (!all(is.na(outdata$Load))) gg1 <- gg1 + geom_point(data=outdata,aes(Date,Load,color = Type),color = "red",shape = "x",size=2.5,na.rm = FALSE)
+gg1 <- gg1 + facet_zoom(xy = Date %in% test_data$date, zoom.size = 1.2, horizontal = FALSE) +
+  labs(x= NULL, title =  paste("Forecast from forecast.tbats; ", "day number: ", i+21, sep = ""))
+gg1
 
 
 
